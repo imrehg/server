@@ -1,0 +1,75 @@
+#!/bin/bash
+
+IPTABLES=/sbin/iptables
+
+ $IPTABLES -P INPUT ACCEPT
+#
+# iptables example configuration script
+#
+# Flush all current rules from iptables
+#
+ $IPTABLES -F
+#
+
+# Needs these modules
+/sbin/modprobe ip_conntrack
+/sbin/modprobe ip_conntrack_ftp
+
+	# Allow SSH connections on tcp port 22
+# This is essential when working on remote servers via SSH to prevent locking yourself out of the system
+#
+
+## ssh
+ $IPTABLES -A INPUT -p tcp --dport 22 -j ACCEPT
+## transmission-daemon
+ $IPTABLES -A INPUT -p tcp --dport 9671 -j ACCEPT
+ $IPTABLES -A INPUT -p tcp --dport 51413 -j ACCEPT
+ $IPTABLES -A INPUT -p udp --dport 51413 -j ACCEPT
+## dedcon
+ $IPTABLES -A INPUT -p tcp --dport 5010 -j ACCEPT
+ $IPTABLES -A INPUT -p udp --dport 5010 -j ACCEPT
+## web/nginx
+ $IPTABLES -A INPUT -p tcp --dport 80 -j ACCEPT
+ $IPTABLES -A INPUT -p tcp --dport 443 -j ACCEPT
+## ftp
+ $IPTABLES -A INPUT -p tcp --dport 21 -j ACCEPT
+
+ # Active ftp
+ $IPTABLES -A INPUT -p tcp --sport 20 -m state --state ESTABLISHED,RELATED -j ACCEPT
+ $IPTABLES -A OUTPUT -p tcp --dport 20 -m state --state ESTABLISHED -j ACCEPT 
+ 
+ # Allow Passive FTP Connections
+ $IPTABLES -A INPUT -p tcp --sport 1024: --dport 1024:  -m state --state ESTABLISHED -j ACCEPT
+ $IPTABLES -A OUTPUT -p tcp --sport 1024: --dport 1024:  -m state --state ESTABLISHED,RELATED -j ACCEPT 
+ 
+ # OpenVPN
+ $IPTABLES -A INPUT -p udp --dport 2394 -j ACCEPT
+ $IPTABLES -A FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
+ $IPTABLES -A FORWARD -s 10.8.0.0/24 -j ACCEPT #10.8.0.0 ? Check your OpenVPN server.conf to be sure
+ $IPTABLES -A FORWARD -j REJECT
+ $IPTABLES -t nat -A POSTROUTING -s 10.8.0.0/24 -o eth0 -j MASQUERADE
+ echo 1 > /proc/sys/net/ipv4/ip_forward
+ 
+#
+# Set default policies for INPUT, FORWARD and OUTPUT chains
+#
+ $IPTABLES -P INPUT DROP
+ $IPTABLES -P FORWARD DROP
+ $IPTABLES -P OUTPUT ACCEPT
+#
+# Set access for localhost
+#
+ $IPTABLES -A INPUT -i lo -j ACCEPT
+#
+# Accept packets belonging to established and related connections
+#
+ $IPTABLES -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+#
+# Save settings
+#
+ /sbin/service iptables save
+#
+# List rules
+#
+ $IPTABLES -L -v
+
